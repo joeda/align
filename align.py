@@ -8,22 +8,41 @@ import csv
 
 CSV_ENDING = ".csv"
 
+def table_to_img(table, inv_res, dtype=np.float64):
+    table[:, 0:2] *= inv_res
+    table[:, 0:2] -= np.amin(table, axis=0)[0:2]
+    idxs = table[:, 0:2].astype(int).tolist()
+    rows, cols = zip(*idxs)
+    vals = table[:, 2].tolist()
+    sz = (np.unique(table[:, 0]).size, np.unique(table[:,1]).size)
+    res = np.empty(sz, dtype)
+    res[:] = np.NaN
+    print(rows)
+    print(cols)
+    res[rows, cols] = vals
+    return res
 
 def read_data(dir, offsets):
     files = [f for f in os.listdir(dir) if os.path.isfile(os.path.join(dir, f))]
     imgs = []
     for f in files:
+        splits = os.path.splitext(f)[0].split("_")
+        if len(splits) < 2:
+            raise ValueError("File name " + f + "  needs to have the resolution behind the last _ ")
+        resolution = float(splits[-1])
+        offset = offsets[os.path.splitext(f)[0]]
         if os.path.splitext(f)[1] == CSV_ENDING:
             arr = np.genfromtxt(os.path.join(dir, f), delimiter=',')
+            arr = table_to_img(arr, 1000 / resolution) # Annahme: Angaben in mm
             # vermutlich musst du das noch flippen, siehe https://numpy.org/doc/stable/reference/generated/numpy.flip.html
         else:
             color = cv2.imread(os.path.join(dir, f))
             arr = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
-        splits = os.path.splitext(f)[0].split("_")
-        if len(splits) != 2:
-            raise ValueError("File name " + f + "  needs to have exactly one _ (has " + str(len(splits) - 1) + ")")
-        resolution = float(splits[1])
-        offset = offsets[os.path.splitext(f)[0]]
+        #perform rotation
+        rows, cols = arr.shape
+        # cols-1 and rows-1 are the coordinate limits.
+        M = cv2.getRotationMatrix2D(((cols - 1) / 2.0, (rows - 1) / 2.0), offset[2], 1)
+        arr = cv2.warpAffine(arr, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=np.NaN)
         imgs.append((arr, resolution, offset))
     return imgs
 
@@ -38,7 +57,7 @@ def join_data(imgs):
     xmin = [int(so[1]) for so, s in zip(scaled_offsets, scales)]
     xmax = [int(img.shape[1] * s + so[1]) for img, so, s in zip(by_type[0], scaled_offsets, scales)]
     w, h = max(xmax) - min(xmin), max(ymax) - min(ymin)
-    canvas = np.zeros((h, w, len(imgs)), dtype=np.uint8)
+    canvas = np.zeros((h, w, len(imgs)), dtype=np.float64)
     as_np = np.stack(scaled_offsets, axis=0)
     offset_shift = -np.amin(as_np, axis=0).astype(int)
     for i, img in enumerate(imgs):
@@ -75,8 +94,8 @@ def write_table(canvas, outfile, center_axes=False):
 
 
 if __name__ == "__main__":
-    offsets = {"ente_0.8": (0, 0), "ente_1": (20, 50),
-               "ente_8": (-30, -30)}  # in px of unscaled image. Change if given in metric units!
+    offsets = {"ente_0.8": (0, 0, 0), "ente_1": (20, 50, 40),
+               "ente_8": (-30, -30, -20)}  # in px of unscaled image and degree (third value). Change if given in metric units!
     parser = argparse.ArgumentParser("Align")
     parser.add_argument("img_dir", type=str, help="Folder with images or CSV tables")
     parser.add_argument("-d", "--show-debug", action="store_true")

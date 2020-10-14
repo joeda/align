@@ -87,6 +87,6 @@ if __name__ == "__main__":
     data = read_data(args.img_dir, offsets)
     joined = join_data(data)
     if args.out:
-        write_table(joined, args.out, not args.no_center)
+        write_table(joined, args.out, args.no_center)
     if (args.show_debug):
         viz(joined)

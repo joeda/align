@@ -12,13 +12,13 @@ def table_to_img(table, inv_res, dtype=np.float64):
     table[:, 0:2] *= inv_res
     table[:, 0:2] -= np.amin(table, axis=0)[0:2]
     idxs = table[:, 0:2].astype(int).tolist()
+    print(table[:, 0:2].astype(int))
     rows, cols = zip(*idxs)
     vals = table[:, 2].tolist()
     sz = (np.unique(table[:, 0]).size, np.unique(table[:,1]).size)
+    print("Size: {}x{}".format(sz[0], sz[1]))
     res = np.empty(sz, dtype)
     res[:] = np.NaN
-    print(rows)
-    print(cols)
     res[rows, cols] = vals
     return res
 
@@ -33,7 +33,7 @@ def read_data(dir, offsets):
         offset = offsets[os.path.splitext(f)[0]]
         if os.path.splitext(f)[1] == CSV_ENDING:
             arr = np.genfromtxt(os.path.join(dir, f), delimiter=',')
-            arr = table_to_img(arr, 1000 / resolution) # Annahme: Angaben in mm
+            arr = table_to_img(arr, 1000 / resolution) # Annahme: Angaben in µm
             # vermutlich musst du das noch flippen, siehe https://numpy.org/doc/stable/reference/generated/numpy.flip.html
         else:
             color = cv2.imread(os.path.join(dir, f))
@@ -95,7 +95,7 @@ def write_table(canvas, outfile, center_axes=False):
 
 if __name__ == "__main__":
     offsets = {"ente_0.8": (0, 0, 0), "ente_1": (20, 50, 40),
-               "ente_8": (-30, -30, -20)}  # in px of unscaled image and degree (third value). Change if given in metric units!
+               "ente_5": (-30, -30, -20)}  # in px of unscaled image and degree (third value). Change if given in metric units!
     parser = argparse.ArgumentParser("Align")
     parser.add_argument("img_dir", type=str, help="Folder with images or CSV tables")
     parser.add_argument("-d", "--show-debug", action="store_true")

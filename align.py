@@ -5,6 +5,7 @@ import numpy as np
 import argparse
 import os
 import csv
+from PIL import Image
 
 CSV_ENDING = ".csv"
 
@@ -36,7 +37,11 @@ def read_data(dir, offsets):
             arr = table_to_img(arr, 1000 / resolution) # Annahme: Angaben in µm
             # vermutlich musst du das noch flippen, siehe https://numpy.org/doc/stable/reference/generated/numpy.flip.html
         else:
-            color = cv2.imread(os.path.join(dir, f))
+            img_path = os.path.join(dir, f)
+            if Image.open(img_path).mode == "F":
+                color = cv2.imread(img_path, cv2.IMREAD_ANYDEPTH)
+            else:
+                color = cv2.imread(img_path)
             arr = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
         #perform rotation
         rows, cols = arr.shape
